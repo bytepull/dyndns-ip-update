@@ -1,0 +1,7 @@
+services:
+  dyndns:
+    build: .
+    container_name: dyndns-updater
+    restart: unless-stopped
+    env_file:
+      - .env
