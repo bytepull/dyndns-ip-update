@@ -1,0 +1,43 @@
+# This workflow builds a Docker image whenever there is a push to main.
+
+name: Build Docker Image
+
+on:
+  # Triggers the workflow on push events for the "main" branch
+  push:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Sets up Docker Buildx so buildkit features (caching, etc.) are available
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Builds the image from the Dockerfile in the repo root and loads it into
+      # the runner's local Docker daemon (so you can inspect/test it).
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: |
+            dyndns-ip-update:latest
+            dyndns-ip-update:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Optional: verify the image exists locally
+      - name: Verify image
+        run: docker images
