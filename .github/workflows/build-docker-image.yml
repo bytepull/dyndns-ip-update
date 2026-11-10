@@ -1,42 +1,56 @@
-# This workflow builds a Docker image whenever there is a push to main.
-
-name: Build Docker Image
+name: Build and Push to GHCR
 
 on:
-  # Triggers the workflow on push events for the "main" branch
   push:
     branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      # 1. Checkout the code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Sets up Docker Buildx so buildkit features (caching, etc.) are available
+      # 2. Set up Docker Buildx (enables advanced build features)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Builds the image from the Dockerfile in the repo root and loads it into
-      # the runner's local Docker daemon (so you can inspect/test it).
-      - name: Build Docker image
+      # 3. Log in to GHCR using the built-in GITHUB_TOKEN
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 4. Generate metadata (tags, labels) from git context
+      #    This creates tags like: latest, main, sha-<short>, semver if tagged
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=
+            type=semver,pattern={{version}}
+
+      # 5. Build and push the image in one step
+      - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: |
-            dyndns-ip-update:latest
-            dyndns-ip-update:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      # Optional: verify the image exists locally
-      - name: Verify image
-        run: docker images
