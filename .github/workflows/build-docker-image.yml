@@ -38,8 +38,9 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=sha,prefix=
 
       # 5. Build and push the image in one step
       - name: Build and push Docker image
